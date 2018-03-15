@@ -1,7 +1,8 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <record_update table="sp_widget">
     <sp_widget action="INSERT_OR_UPDATE">
-        <client_script><![CDATA[function($rootScope,$scope) {
+        <category/>
+        <client_script><![CDATA[function($rootScope,$scope, spUtil) {
 	/* widget controller */
 	var c = this;
 	// Use a position indicator to know which record to update
@@ -35,6 +36,43 @@
 
 	$rootScope.$on('deleteNote', function(event,data) {
 		c.data.notes.splice($scope.notePos, 1);
+		spUtil.addTrivialMessage("Note has been deleted successfully...");
+	});
+	
+	c.snNoteUpdate = function(note, noteID){
+		for(var index = 0; index < c.data.notes.length; index++)
+			if(c.data.notes[index].sys_id == noteID){
+				if(note.data.record.note)
+					c.data.notes[index].note = note.data.record.note;
+				if(note.data.record.title)
+					c.data.notes[index].title = note.data.record.title.display_value;				
+			}
+		c.server.update();
+	};
+	
+	c.snNoteDelete = function(noteID){
+		c.server.get({
+			action: 'snDeleteNote',
+		  noteID: noteID
+		})
+		.then(function(response){
+			for(var index = 0; index < c.data.notes.length; index++)
+				console.log("Hardik " + data.notes[index].sys_id + " -- " + c.data.notes[index].title + " " +c.data.notes[inde.note);
+			c.data.notes = response.data.notes;
+		});		
+	}
+
+	spUtil.recordWatch($scope, "x_snc_createnotes_note", "numberISNOTEMPTY", function(name){
+		
+		if(name.data.operation == "insert")
+			c.server.refresh();
+		else if(name.data.operation == "update")
+			c.snNoteUpdate(name, name.data.sys_id);
+		else if(name.data.operation == "insert")
+			c.snNoteDelete(name.data.sys_id);
+		
+		console.log(name.data.operation);
+		console.log(name);
 	});
 
 }
@@ -54,7 +92,7 @@
         <internal>false</internal>
         <link/>
         <name>Notes List</name>
-        <option_schema/>
+        <option_schema>[{"hint":"Select the maximum number of records to display","name":"maximum_records_to_display","section":"other","default_value":"5","label":"Maximum records to display","type":"choice","choices":[{"label":"2","value":"2"},{"label":"3","value":"3"},{"label":"4","value":"4"},{"label":"5","value":"5"},{"label":"7","value":"7"},{"label":"11","value":"11"},{"label":"13","value":"13"},{"label":"17","value":"17"}]},{"hint":"Specify a title for the Notes List widget","name":"title","section":"other","default_value":"Notes","label":"Title","type":"string"}]</option_schema>
         <public>false</public>
         <roles/>
         <script><![CDATA[(function() {
@@ -63,6 +101,7 @@
 	var noteGR = new GlideRecord('x_snc_createnotes_note');
 	noteGR.addQuery('user', gs.getUser().getID());
 	noteGR.orderByDesc('sys_created_on');
+	noteGR.setLimit(options.maximum_records_to_display);
 	noteGR.query();
 	while (noteGR.next()) {
 		var noteObj = {};
@@ -82,7 +121,12 @@
 			data.noteID = id;
 			data.newNote = {};
 			$sp.getRecordValues(data.newNote,newNote,"title,note,sys_id");
-
+		}
+		
+		else if(input.action == 'snNoteDelete'){
+			var note = new GlideRecord('x_snc_createnotes_note');
+			if(note.get(input.noteID))
+				note.deleteRecord();
 		}
 	}
 }
@@ -92,18 +136,18 @@
         <sys_created_by>admin</sys_created_by>
         <sys_created_on>2017-10-14 01:08:53</sys_created_on>
         <sys_id>296321a54f7d4f004e584b8d0210c7a9</sys_id>
-        <sys_mod_count>20</sys_mod_count>
+        <sys_mod_count>34</sys_mod_count>
         <sys_name>Notes List</sys_name>
         <sys_package display_value="CreateNotes" source="x_snc_createnotes">df5fd9a5090232007f44e1046c8ff69f</sys_package>
         <sys_policy/>
         <sys_scope display_value="CreateNotes">df5fd9a5090232007f44e1046c8ff69f</sys_scope>
         <sys_update_name>sp_widget_296321a54f7d4f004e584b8d0210c7a9</sys_update_name>
         <sys_updated_by>admin</sys_updated_by>
-        <sys_updated_on>2017-11-15 19:55:38</sys_updated_on>
+        <sys_updated_on>2018-03-14 11:48:41</sys_updated_on>
         <template><![CDATA[<div class="panel panel-default">
   <div class="panel-heading clearfix">
     <h3 class="panel-title pull-left">
-      ${Notes}
+      {{::c.options.title}}
     </h3>
     <button class="btn btn-default pull-right" ng-click="c.newNote()"> 
       <span class="glyphicon glyphicon-plus"></span> 
